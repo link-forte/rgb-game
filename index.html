@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>色当てゲーム</title>
+    <title>RGB色当てゲーム</title>
     <!-- PWA関連のメタタグ -->
     <meta name="theme-color" content="#4CAF50">
+    <meta property="og:title" content="RGB色当てゲーム">
+    <meta property="og:description" content="鍛えろ絶対RGB力">
+    <meta property="og:image" content="https://link-forte.github.io/rgb-game/rgb-game.png">
+    <meta property="og:url" content="https://link-forte.github.io/rgb-game/">
+    <meta property="og:type" content="website">
     <link rel="manifest" href="./manifest.json">
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
     <style>
@@ -1981,7 +1986,7 @@
             const pageUrl = window.location.href;
 
             // 共有するメッセージを作成
-            const message = `RGB色当てゲームで${currentScore}点を獲得しました！${streakText}(${gameModeText}, 難易度: ${difficultyText}, 色覚モード: ${colorVisionText}) #RGBゲーム #色当て ${pageUrl}`;
+            const message = `RGB色当てゲームで${currentScore}点を獲得しました！${streakText}(${gameModeText}, 難易度: ${difficultyText}, 色覚モード: ${colorVisionText}) #RGBゲーム #色当て #絶対RGB力 ${pageUrl}`;
 
             // Blueskyの投稿画面を開く（AT Protocolを使用）
             // 注意：Blueskyは正式なシェア用URLがないため、代替手段としてテキストをコピー
