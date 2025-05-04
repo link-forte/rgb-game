@@ -1,0 +1,2068 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>色当てゲーム</title>
+    <!-- PWA関連のメタタグ -->
+    <meta name="theme-color" content="#4CAF50">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 {
+            color: #333;
+            transition: color 0.3s;
+        }
+
+        #rgb-display {
+            font-size: 24px;
+            margin: 20px 0;
+            color: #333;
+            font-weight: bold;
+            transition: color 0.3s, background-color 0.3s;
+        }
+
+        #color-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .color-square {
+            aspect-ratio: 1/1;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            position: relative; /* パターンを追加するために相対位置設定 */
+            overflow: hidden; /* パターンがはみ出さないように */
+        }
+
+        /* 色覚異常モード用のパターンスタイル */
+        .color-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* クリックイベントをスルーさせる */
+        }
+
+        /* 各パターンのスタイル */
+        .pattern-lines {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255, 255, 255, 0.5) 10px, rgba(255, 255, 255, 0.5) 20px);
+        }
+
+        .pattern-dots {
+            background-image: radial-gradient(circle, rgba(255, 255, 255, 0.5) 3px, transparent 3px);
+            background-size: 20px 20px;
+        }
+
+        .pattern-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* 数字ラベルスタイル */
+        .color-number {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            pointer-events: none; /* クリックイベントをスルーさせる */
+        }
+
+        .color-square:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        /* New style for clicked squares */
+        .clicked {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        #message {
+            margin: 20px 0;
+            font-size: 20px;
+            font-weight: bold;
+            min-height: 30px;
+            transition: color 0.3s;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* 難易度ボタンのスタイル */
+        .difficulty-btn {
+            background-color: #72c477;  /* 明るめの緑 */
+        }
+
+        .difficulty-btn:hover {
+            background-color: #61b366;  /* ホバー時は少し暗めに */
+        }
+
+        /* アクティブな難易度ボタンのスタイル */
+        .difficulty-btn.active {
+            background-color: #4CAF50;  /* 元の緑色 */
+            cursor: default;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);  /* 緑の光彩 */
+            transform: scale(1.05);
+            font-weight: bold;  /* 選択中のボタンのテキストを太字に */
+        }
+
+        .difficulty-btn.active:hover {
+            background-color: #4CAF50;  /* ホバー時も色を維持 */
+        }
+
+        /* 色覚モードボタンのスタイル */
+        .colorblind-btn {
+            background-color: #9575cd;  /* 紫系 */
+        }
+
+        .colorblind-btn:hover {
+            background-color: #7e57c2;  /* ホバー時は少し暗めに */
+        }
+
+        .colorblind-btn.active {
+            background-color: #673ab7;  /* アクティブ時の色 */
+            cursor: default;
+            box-shadow: 0 0 10px rgba(103, 58, 183, 0.5);  /* 紫の光彩 */
+            transform: scale(1.05);
+            font-weight: bold;
+        }
+
+        .colorblind-btn.active:hover {
+            background-color: #673ab7;  /* ホバー時も色を維持 */
+        }
+
+        /* ゲームモードボタンのスタイル */
+        .game-mode-btn {
+            background-color: #ff9800;  /* オレンジ系 */
+        }
+
+        .game-mode-btn:hover {
+            background-color: #e68a00;  /* ホバー時は少し暗めに */
+        }
+
+        .game-mode-btn.active {
+            background-color: #f57c00;  /* アクティブ時の色 */
+            cursor: default;
+            box-shadow: 0 0 10px rgba(245, 124, 0, 0.5);  /* オレンジの光彩 */
+            transform: scale(1.05);
+            font-weight: bold;
+        }
+
+        .game-mode-btn.active:hover {
+            background-color: #f57c00;  /* ホバー時も色を維持 */
+        }
+
+        /* 新しい難易度行のスタイル */
+        .difficulty-row, .colorblind-row, .game-mode-row, .settings-row {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #share-score {
+            background-color: #1D9BF0;
+            display: none;
+        }
+
+        #share-score:hover {
+            background-color: #0d8bd9;
+        }
+
+        #show-correct {
+            background-color: #ff9800;
+            display: none;
+        }
+
+        #show-correct:hover {
+            background-color: #e68a00;
+        }
+
+        #retry-problem {
+            background-color: #2196F3;
+            display: none;
+        }
+
+        #retry-problem:hover {
+            background-color: #0b7dda;
+        }
+
+        #score {
+            font-size: 18px;
+            margin: 10px 0;
+            transition: color 0.3s;
+        }
+
+        #combo {
+            font-size: 16px;
+            margin: 5px 0;
+            color: #9c27b0;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        /* 難易度説明 */
+        .settings-info {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0 15px 0;
+            transition: color 0.3s;
+        }
+
+        /* タイムボーナストグルボタンのスタイル */
+        .time-bonus-btn {
+            background-color: #7986cb;
+            padding: 8px 16px;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+
+        .time-bonus-btn.active {
+            background-color: #3f51b5;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(63, 81, 181, 0.5);
+        }
+
+        .time-bonus-btn:hover {
+            background-color: #5c6bc0;
+        }
+
+        /* テーマ切り替えボタンのスタイル */
+        .theme-btn {
+            background-color: #555;
+            color: white;
+        }
+
+        .theme-btn:hover {
+            background-color: #444;
+        }
+
+        .theme-btn.light-mode {
+            background-color: #f8d568;
+            color: #333;
+        }
+
+        .theme-btn.light-mode:hover {
+            background-color: #e5c455;
+        }
+
+        #time-info {
+            font-size: 16px;
+            color: #3f51b5;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        /* ゲームオーバー表示用のスタイル */
+        .game-over {
+            color: red;
+            font-size: 28px;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+
+        /* 正解の色を示すためのスタイル - 正解確認ボタン用 */
+        .correct-color {
+            border: 4px solid gold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+            50% { box-shadow: 0 0 20px 10px rgba(255, 215, 0, 0.7); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+        }
+
+        /* ダークモード関連のスタイル */
+        body.dark-theme {
+            background-color: #222;
+            color: #eee;
+        }
+
+        body.dark-theme h1 {
+            color: #fff;
+        }
+
+        body.dark-theme #rgb-display {
+            color: #fff;
+            background-color: #333;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        body.dark-theme .color-square {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        body.dark-theme .color-square:hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        body.dark-theme #message {
+            color: #ddd;
+        }
+
+        body.dark-theme .settings-info {
+            color: #aaa;
+        }
+
+        body.dark-theme #score,
+        body.dark-theme #combo {
+            color: #ddd;
+        }
+
+        /* New button container styles */
+        .button-container {
+            margin: 10px 0;
+        }
+
+        /* 設定ボタンのスタイル */
+        #settings-button {
+            background-color: #607d8b;
+        }
+
+        #settings-button:hover {
+            background-color: #455a64;
+        }
+
+        /* 設定ボタンコンテナのスタイル */
+        .settings-button-container {
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* 無限モード用スタイル */
+        #infinite-streak {
+            font-size: 16px;
+            margin: 5px 0;
+            color: #ff9800;
+            font-weight: bold;
+        }
+
+        /* モーダルウィンドウのスタイル - 新規追加 */
+        .modal {
+            display: none; /* 初期状態は非表示 */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5); /* 半透明の背景 */
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* ダークモード時のモーダルスタイル */
+        body.dark-theme .modal-content {
+            background-color: #333;
+            color: #eee;
+        }
+
+        /* 閉じるボタンのスタイル */
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-button:hover {
+            color: #f44336;
+        }
+
+        /* 設定セクションのスタイル */
+        .settings-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        body.dark-theme .settings-section {
+            border-bottom: 1px solid #555;
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .settings-section h3 {
+            margin-top: 0;
+            color: #4CAF50;
+            text-align: left;
+            margin-bottom: 15px;
+        }
+
+        body.dark-theme .settings-section h3 {
+            color: #8bc34a;
+        }
+
+        /* PWA インストールボタンのスタイル */
+        #install-app {
+            background-color: #3f51b5;
+            display: none;
+            margin-top: 15px;
+        }
+
+        #install-app:hover {
+            background-color: #303f9f;
+        }
+
+        /* モバイル最適化 */
+        @media screen and (max-width: 768px) {
+            #color-container {
+                gap: 10px;
+                padding: 5px;
+            }
+
+            button {
+                padding: 12px 24px;
+                margin: 8px 5px;
+                font-size: 14px;
+            }
+
+            #rgb-display {
+                font-size: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            p {
+                font-size: 14px;
+            }
+
+            .modal-content {
+                margin: 15% auto;
+                width: 90%;
+                padding: 15px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            #color-container {
+                gap: 6px;
+                padding: 3px;
+            }
+
+            .difficulty-btn, .colorblind-btn, .game-mode-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .modal-content {
+                margin: 20% auto;
+                width: 95%;
+                padding: 10px;
+            }
+
+            #message {
+                font-size: 16px;
+            }
+        }
+    </style>
+
+    <!-- OGPタグ -->
+    <meta property="og:title" content="RGB色当てゲーム" />
+    <meta property="og:description" content="RGB値に合う色を当てる脳トレゲーム！" />
+    <meta property="og:image" content="./rgb-game-ogp.svg" />
+    <meta property="og:url" content="https://github.com/hmmf022" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RGB色当てゲーム" />
+    <meta name="twitter:card" content="summary_large_image" />
+</head>
+<body>
+    <h1>RGB色当てゲーム</h1>
+    <p>以下のRGB値に合う色を選んでください！</p>
+    <p id="game-rules">注意：連続で間違えるとゲームオーバーになります（簡単：2回、普通・難しい：3回）</p>
+
+    <div id="rgb-display">RGB(255, 255, 255)</div>
+
+    <div id="color-container"></div>
+
+    <div id="message"></div>
+
+    <div id="score">スコア: 0</div>
+    <div id="combo"></div>
+    <div id="infinite-streak"></div>
+    <div id="time-info"></div>
+
+    <div class="button-container">
+        <button id="new-game">新しいゲーム</button>
+        <button id="share-score">Blueskyに共有</button>
+        <button id="show-correct">正解を確認</button>
+        <button id="retry-problem">問題を確認</button>
+    </div>
+
+    <div class="settings-button-container">
+        <button id="settings-button">設定</button>
+    </div>
+
+    <!-- 設定モーダル - タイムボーナスとダークモード設定を追加 -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>ゲーム設定</h2>
+
+            <!-- ゲームモード設定セクション -->
+            <div class="settings-section">
+                <h3>ゲームモード</h3>
+                <div class="game-mode-row">
+                    <button id="normal-mode-btn" class="game-mode-btn active" onclick="setGameMode('normal')">通常モード</button>
+                    <button id="infinite-mode-btn" class="game-mode-btn" onclick="setGameMode('infinite')">無限モード</button>
+                </div>
+
+                <div class="settings-info">
+                    通常モード：連続で間違えるとゲームオーバー、正解すると次の問題へ
+                    <br>無限モード：不正解の場合は正解を表示して次へ、正解の場合はそのまま次へ
+                </div>
+            </div>
+
+            <!-- 難易度設定セクション -->
+            <div class="settings-section">
+                <h3>難易度</h3>
+                <!-- 第1行：色の差に基づく難易度 -->
+                <div class="difficulty-row">
+                    <button id="easy-btn" class="difficulty-btn" onclick="setDifficulty('easy')">簡単 (色の差が大きい)</button>
+                    <button id="medium-btn" class="difficulty-btn active" onclick="setDifficulty('medium')">普通 (適度な色の差)</button>
+                    <button id="hard-btn" class="difficulty-btn" onclick="setDifficulty('hard')">難しい (色の差が小さい)</button>
+                </div>
+
+                <!-- 第2行：ランダムな色（表示数が異なる） -->
+                <div class="difficulty-row">
+                    <button id="random3-btn" class="difficulty-btn" onclick="setDifficulty('random3')">ランダム (3色)</button>
+                    <button id="random6-btn" class="difficulty-btn" onclick="setDifficulty('random6')">ランダム (6色)</button>
+                    <button id="random9-btn" class="difficulty-btn" onclick="setDifficulty('random9')">ランダム (9色)</button>
+                </div>
+
+                <div class="settings-info">
+                    簡単：色の差が大きく(CIEDE2000値 10以上)、はっきりと区別できる色
+                    <br>普通：適度な色の差で、ある程度の判断力が必要
+                    <br>難しい：色の差が小さく(CIEDE2000値 5以下)、非常に似た色
+                    <br>ランダム：完全にランダムな色で表示数が異なります
+                </div>
+            </div>
+
+            <!-- 色覚モード設定セクション -->
+            <div class="settings-section">
+                <h3>色覚モード</h3>
+                <div class="colorblind-row">
+                    <button id="normal-vision-btn" class="colorblind-btn active" onclick="setColorVisionMode('normal')">通常の色覚</button>
+                    <button id="protanopia-btn" class="colorblind-btn" onclick="setColorVisionMode('protanopia')">1型色覚（P型）向け</button>
+                    <button id="deuteranopia-btn" class="colorblind-btn" onclick="setColorVisionMode('deuteranopia')">2型色覚（D型）向け</button>
+                    <button id="tritanopia-btn" class="colorblind-btn" onclick="setColorVisionMode('tritanopia')">3型色覚（T型）向け</button>
+                </div>
+
+                <div class="colorblind-row">
+                    <button id="simulate-protanopia-btn" class="colorblind-btn" onclick="setColorVisionMode('simulate-protanopia')">1型色覚シミュレーション</button>
+                    <button id="simulate-deuteranopia-btn" class="colorblind-btn" onclick="setColorVisionMode('simulate-deuteranopia')">2型色覚シミュレーション</button>
+                </div>
+
+                <div class="settings-info">
+                    通常の色覚：標準的な色覚の方向け
+                    <br>1型色覚（P型）向け：赤色の識別が困難な方向け（赤色が暗く見える）
+                    <br>2型色覚（D型）向け：緑色の識別が困難な方向け（緑色が明るく見える）
+                    <br>3型色覚（T型）向け：青色の識別が困難な方向け（青と緑の区別が困難）
+                    <br>1型色覚シミュレーション：1型色覚（P型）の見え方を体験
+                    <br>2型色覚シミュレーション：2型色覚（D型）の見え方を体験
+                </div>
+            </div>
+
+            <!-- 追加の設定セクション -->
+            <div class="settings-section">
+                <h3>追加設定</h3>
+                <!-- タイムボーナス設定 -->
+                <div class="settings-row">
+                    <button id="time-bonus-toggle" class="time-bonus-btn" onclick="toggleTimeBonus()">タイムボーナス: オフ</button>
+                </div>
+                <div class="settings-info">
+                    タイムボーナス：素早く正解するとボーナスポイントが獲得できます
+                    <br>1.5秒以内：100%ボーナス / 3秒以内：50%ボーナス / 5秒以内：20%ボーナス
+                </div>
+
+                <!-- テーマ設定 -->
+                <div class="settings-row">
+                    <button id="theme-toggle" class="theme-btn light-mode" onclick="toggleTheme()">🌙 ダークモード</button>
+                </div>
+                <div class="settings-info">
+                    テーマ：ゲームの外観を変更します
+                </div>
+
+                <!-- PWAインストール設定 - ここに移動 -->
+                <div class="settings-row">
+                    <button id="install-app">アプリをインストール</button>
+                </div>
+                <div class="settings-info">
+                    インストール：このゲームをアプリとしてデバイスにインストールします
+                    <br>オフラインでもプレイ可能になります
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let colors = [];
+        let correctColor;
+        let score = 0;
+        let difficultyLevel = 'medium'; // デフォルトは普通
+        let consecutiveWrong = 0; // 連続不正解回数
+        let isGameOver = false; // ゲームオーバーフラグ
+        let maxWrongAttempts = 3; // 最大不正解回数（デフォルト）
+        let consecutiveCorrect = 0; // 連続正解回数
+        let scoreMultiplier = 1.0; // スコア倍率
+        let numColors = 6; // デフォルトの色数
+        let colorVisionMode = 'normal'; // デフォルトの色覚モード
+        let useColorPatterns = false; // パターンを使用するかどうか
+        let showColorNumbers = false; // 数字ラベルを表示するかどうか
+        let gameMode = 'normal'; // デフォルトは通常モード
+        let infiniteStreak = 0; // 無限モードの連続正解回数
+
+        // タイムベースのスコア関連
+        let useTimeBonus = false; // タイムボーナス機能のフラグ
+        let startTime = null; // 問題開始時間
+        let timeBonus = 0; // 時間ボーナス
+
+        // キャッシュマップの実装
+        const colorCache = new Map();
+        const labCache = new Map();
+        const differenceCache = new Map();
+        const cosCache = new Map();
+        const sinCache = new Map();
+
+        // ページ読み込み時に初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDifficultyButtons();
+            updateColorVisionButtons();
+            updateGameModeButtons();
+            updateTimeBonusButton();
+            setupThemeToggle();
+            setupModalHandlers(); // モーダルハンドラの設定
+            // キャッシュ管理を初期化
+            setupCacheManagement();
+            // PWAインストールハンドラの設定
+            setupPWAInstall();
+        });
+
+        // PWAインストールハンドラの設定
+        function setupPWAInstall() {
+            // インストールプロンプトを保存
+            let deferredPrompt;
+            const installButton = document.getElementById('install-app');
+
+            // インストールプロンプトの発火時
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // ブラウザのデフォルトインストールプロンプトを防止
+                e.preventDefault();
+                // プロンプトを保存
+                deferredPrompt = e;
+                // インストールボタンを表示
+                installButton.style.display = 'inline-block';
+            });
+
+            // インストールボタンのクリック時
+            installButton.addEventListener('click', async () => {
+                if (!deferredPrompt) return;
+
+                // インストールプロンプトを表示
+                deferredPrompt.prompt();
+
+                // プロンプトの結果を待機
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`インストール結果: ${outcome}`);
+
+                // プロンプトは1回しか使えないのでリセット
+                deferredPrompt = null;
+
+                // インストールボタンを非表示
+                installButton.style.display = 'none';
+            });
+
+            // アプリがインストールされた時
+            window.addEventListener('appinstalled', (e) => {
+                console.log('アプリがインストールされました');
+                // インストールボタンを非表示
+                installButton.style.display = 'none';
+            });
+        }
+
+        // モーダルウィンドウのイベントハンドラ設定
+        function setupModalHandlers() {
+            const modal = document.getElementById('settings-modal');
+            const settingsButton = document.getElementById('settings-button');
+            const closeButton = document.querySelector('.close-button');
+
+            // 設定ボタンをクリックしたらモーダルを表示
+            settingsButton.addEventListener('click', function() {
+                modal.style.display = 'block';
+            });
+
+            // 閉じるボタンをクリックしたらモーダルを非表示
+            closeButton.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+
+            // モーダルの外側をクリックしたらモーダルを非表示
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // Escキーを押したらモーダルを非表示
+            window.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && modal.style.display === 'block') {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        // ダークモード切り替え機能
+        function setupThemeToggle() {
+            // ローカルストレージからテーマ設定を読み込み
+            const savedTheme = localStorage.getItem('rgbGameTheme');
+
+            // 保存されたテーマがあれば適用
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.getElementById('theme-toggle').textContent = '☀️ ライトモード';
+                document.getElementById('theme-toggle').classList.remove('light-mode');
+            } else {
+                document.body.classList.remove('dark-theme');
+                document.getElementById('theme-toggle').textContent = '🌙 ダークモード';
+                document.getElementById('theme-toggle').classList.add('light-mode');
+            }
+        }
+
+        // テーマを切り替える関数
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+            const themeToggle = document.getElementById('theme-toggle');
+
+            if (document.body.classList.contains('dark-theme')) {
+                themeToggle.textContent = '☀️ ライトモード';
+                themeToggle.classList.remove('light-mode');
+                localStorage.setItem('rgbGameTheme', 'dark');
+            } else {
+                themeToggle.textContent = '🌙 ダークモード';
+                themeToggle.classList.add('light-mode');
+                localStorage.setItem('rgbGameTheme', 'light');
+            }
+        }
+
+        // タイムボーナス設定の切り替え関数
+        function toggleTimeBonus() {
+            useTimeBonus = !useTimeBonus;
+            updateTimeBonusButton();
+
+            // タイマーを開始/停止
+            if (useTimeBonus) {
+                document.getElementById('time-info').textContent = 'タイム計測中...';
+                startTime = Date.now();
+            } else {
+                document.getElementById('time-info').textContent = '';
+            }
+        }
+
+        // タイムボーナスボタンの表示を更新する関数
+        function updateTimeBonusButton() {
+            const toggleButton = document.getElementById('time-bonus-toggle');
+            if (useTimeBonus) {
+                toggleButton.textContent = 'タイムボーナス: オン';
+                toggleButton.classList.add('active');
+            } else {
+                toggleButton.textContent = 'タイムボーナス: オフ';
+                toggleButton.classList.remove('active');
+            }
+        }
+
+        // 難易度ボタンの表示を更新する関数
+        function updateDifficultyButtons() {
+            // すべての難易度ボタンから active クラスを削除
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 現在の難易度に応じたボタンに active クラスを追加
+            const activeBtn = document.getElementById(`${difficultyLevel}-btn`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+        }
+
+        // 色覚モードボタンの表示を更新する関数
+        function updateColorVisionButtons() {
+            // すべての色覚モードボタンから active クラスを削除
+            document.querySelectorAll('.colorblind-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 現在の色覚モードに応じたボタンに active クラスを追加
+            let activeBtn;
+
+            if (colorVisionMode === 'simulate-protanopia') {
+                activeBtn = document.getElementById('simulate-protanopia-btn');
+            } else if (colorVisionMode === 'simulate-deuteranopia') {
+                activeBtn = document.getElementById('simulate-deuteranopia-btn');
+            } else if (colorVisionMode === 'normal') {
+                activeBtn = document.getElementById('normal-vision-btn');
+            } else {
+                // 1型〜3型色覚モード（protanopia, deuteranopia, tritanopia）
+                activeBtn = document.getElementById(`${colorVisionMode}-btn`);
+            }
+
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+        }
+
+        // ゲームモードボタンの表示を更新する関数
+        function updateGameModeButtons() {
+            // すべてのゲームモードボタンから active クラスを削除
+            document.querySelectorAll('.game-mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 現在のゲームモードに応じたボタンに active クラスを追加
+            const activeBtn = document.getElementById(`${gameMode}-mode-btn`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+
+            // ゲームモードに応じてルール説明を更新
+            updateGameRules();
+        }
+
+        // ゲームモードに応じてルール説明を更新する関数
+        function updateGameRules() {
+            const rulesElement = document.getElementById('game-rules');
+            if (gameMode === 'normal') {
+                rulesElement.textContent = '注意：連続で間違えるとゲームオーバーになります（簡単：2回、普通・難しい：3回）';
+                document.getElementById('infinite-streak').textContent = '';
+            } else if (gameMode === 'infinite') {
+                rulesElement.textContent = '無限モード：不正解の場合は正解を表示して次へ進みます。連続正解数に挑戦！';
+                document.getElementById('infinite-streak').textContent = '連続正解数: 0';
+            }
+        }
+
+        // ゲームモードを設定する関数
+        function setGameMode(mode) {
+            // 既に選択されているモードなら何もしない
+            if (mode === gameMode) return;
+
+            gameMode = mode;
+
+            // ゲームモードボタンの表示を更新
+            updateGameModeButtons();
+
+            // 無限モードに切り替えた場合は連続正解数をリセット
+            if (mode === 'infinite') {
+                infiniteStreak = 0;
+                document.getElementById('infinite-streak').textContent = '連続正解数: 0';
+                // 無限モードではスコア表示を非表示にする
+                document.getElementById('score').style.display = 'none';
+            } else {
+                // 通常モードではスコア表示を表示する
+                document.getElementById('score').style.display = '';
+            }
+
+            // スコアとコンボをリセット
+            score = 0;
+            document.getElementById('score').textContent = `スコア: 0`;
+            consecutiveCorrect = 0;
+            document.getElementById('combo').textContent = '';
+
+            // ゲームをリセット
+            resetGame();
+
+            // この行を削除しました（モーダルを自動的に閉じないように）
+            // document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // 色覚モードを設定する関数
+        function setColorVisionMode(mode) {
+            // 既に選択されているモードなら何もしない
+            if (mode === colorVisionMode) return;
+
+            colorVisionMode = mode;
+
+            // 色覚モードに応じた設定
+            switch(mode) {
+                case 'normal':
+                    useColorPatterns = false;
+                    showColorNumbers = false;
+                    break;
+                case 'protanopia': // 1型色覚（P型）向け
+                case 'deuteranopia': // 2型色覚（D型）向け
+                case 'tritanopia': // 3型色覚（T型）向け
+                    useColorPatterns = true;
+                    showColorNumbers = true;
+                    break;
+                case 'simulate-protanopia': // 1型色覚シミュレーション
+                case 'simulate-deuteranopia': // 2型色覚シミュレーション
+                    useColorPatterns = false;
+                    showColorNumbers = false;
+                    break;
+            }
+
+            // 色覚モードボタンの表示を更新
+            updateColorVisionButtons();
+
+            // ゲームをリセット
+            resetGame();
+
+            // この行を削除しました（モーダルを自動的に閉じないように）
+            // document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // 難易度設定
+        function setDifficulty(level) {
+            // 既に選択されている難易度なら何もしない
+            if (level === difficultyLevel) return;
+
+            difficultyLevel = level;
+
+            // 難易度に応じて最大不正解回数と色の数を設定
+            switch(level) {
+                case 'easy':
+                    maxWrongAttempts = 2; // 簡単モードは2回まで
+                    numColors = 3;
+                    break;
+                case 'medium':
+                    maxWrongAttempts = 3;
+                    numColors = 6;
+                    break;
+                case 'hard':
+                    maxWrongAttempts = 3;
+                    numColors = 9;
+                    break;
+                case 'random3':
+                    maxWrongAttempts = 2;
+                    numColors = 3;
+                    break;
+                case 'random6':
+                    maxWrongAttempts = 3;
+                    numColors = 6;
+                    break;
+                case 'random9':
+                    maxWrongAttempts = 3;
+                    numColors = 9;
+                    break;
+            }
+
+            // 難易度ボタンの表示を更新
+            updateDifficultyButtons();
+
+            // スコアをリセット
+            score = 0;
+            document.getElementById('score').textContent = `スコア: 0`;
+            resetGame();
+
+            // この行を削除しました（モーダルを自動的に閉じないように）
+            // document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // RGB→LAB変換のためのヘルパー関数
+        function rgbToLabCached(rgb) {
+            // RGB値をキーとしてキャッシュをチェック
+            const key = `${rgb[0]},${rgb[1]},${rgb[2]}`;
+
+            // キャッシュにあれば、それを返す
+            if (labCache.has(key)) {
+                return labCache.get(key);
+            }
+
+            // キャッシュになければ計算
+            // RGB値を0-1の範囲に正規化
+            let r = rgb[0] / 255;
+            let g = rgb[1] / 255;
+            let b = rgb[2] / 255;
+
+            // sRGBからリニアRGBへの変換（条件分岐を減らすため三項演算子を使用）
+            r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+            g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+            b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+            // リニアRGBからXYZへの変換（行列演算を最適化）
+            const x = r * 0.4124 + g * 0.3576 + b * 0.1805;
+            const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+            const z = r * 0.0193 + g * 0.1192 + b * 0.9505;
+
+            // D65基準白色点
+            const xn = 0.95047;
+            const yn = 1.0;
+            const zn = 1.08883;
+
+            // XYZ正規化
+            let xr = x / xn;
+            let yr = y / yn;
+            let zr = z / zn;
+
+            // XYZ→LAB変換定数
+            const epsilon = 0.008856;
+            const kappa = 903.3;
+
+            // 変換関数の最適化（事前計算と条件分岐を減らす）
+            const fx = xr > epsilon ? Math.cbrt(xr) : (kappa * xr + 16) / 116;
+            const fy = yr > epsilon ? Math.cbrt(yr) : (kappa * yr + 16) / 116;
+            const fz = zr > epsilon ? Math.cbrt(zr) : (kappa * zr + 16) / 116;
+
+            const L = 116 * fy - 16;
+            const a = 500 * (fx - fy);
+            const bComponent = 200 * (fy - fz);
+
+            const result = [L, a, bComponent];
+
+            // 結果をキャッシュに保存
+            labCache.set(key, result);
+
+            return result;
+        }
+
+        // 計算コストの高い操作をキャッシュするためのヘルパー関数
+        function getCachedValue(cache, key, computeFunc) {
+            if (cache.has(key)) {
+                return cache.get(key);
+            }
+            const result = computeFunc();
+            cache.set(key, result);
+            return result;
+        }
+
+        function cachedCos(angle) {
+            return getCachedValue(cosCache, angle, () => Math.cos(angle * Math.PI / 180));
+        }
+
+        function cachedSin(angle) {
+            return getCachedValue(sinCache, angle, () => Math.sin(angle * Math.PI / 180));
+        }
+
+        // 最適化されたDeltaE2000関数
+        function deltaE2000Optimized(lab1, lab2) {
+            // キャッシュキーを生成（順不同で同じキーになるように）
+            const cacheKey = lab1[0] <= lab2[0]
+                ? `${lab1[0]},${lab1[1]},${lab1[2]}_${lab2[0]},${lab2[1]},${lab2[2]}`
+                : `${lab2[0]},${lab2[1]},${lab2[2]}_${lab1[0]},${lab1[1]},${lab1[2]}`;
+
+            // キャッシュをチェック
+            if (differenceCache.has(cacheKey)) {
+                return differenceCache.get(cacheKey);
+            }
+
+            // キャッシュになければ計算
+            // 入力パラメータの展開
+            const L1 = lab1[0];
+            const a1 = lab1[1];
+            const b1 = lab1[2];
+            const L2 = lab2[0];
+            const a2 = lab2[1];
+            const b2 = lab2[2];
+
+            // 高速化のための事前計算
+            const a1Squared = a1 * a1;
+            const b1Squared = b1 * b1;
+            const a2Squared = a2 * a2;
+            const b2Squared = b2 * b2;
+
+            // ステップ1: CからC*およびhの計算
+            const C1 = Math.sqrt(a1Squared + b1Squared);
+            const C2 = Math.sqrt(a2Squared + b2Squared);
+            const Cbar = (C1 + C2) / 2;
+
+            // C^7を計算 (色調の重みを計算するため)
+            // 定数を使用して微小最適化
+            const pow7 = 7;
+            const C7 = Math.pow(Cbar, pow7);
+            const G = 0.5 * (1 - Math.sqrt(C7 / (C7 + 6103515625))); // 25^7
+
+            const a1p = a1 * (1 + G);
+            const a2p = a2 * (1 + G);
+
+            const a1pSquared = a1p * a1p;
+            const a2pSquared = a2p * a2p;
+
+            const C1p = Math.sqrt(a1pSquared + b1Squared);
+            const C2p = Math.sqrt(a2pSquared + b2Squared);
+            const Cbarp = (C1p + C2p) / 2;
+
+            // h1pとh2pを計算（色相角）- アークタンジェントの計算を最適化
+            let h1p = Math.atan2(b1, a1p) * 180 / Math.PI;
+            if (h1p < 0) h1p += 360;
+
+            let h2p = Math.atan2(b2, a2p) * 180 / Math.PI;
+            if (h2p < 0) h2p += 360;
+
+            // 色相差の計算を簡略化
+            let dhp;
+            if (C1p * C2p === 0) {
+                dhp = 0;
+            } else {
+                const hDiff = h2p - h1p;
+                if (Math.abs(hDiff) <= 180) {
+                    dhp = hDiff;
+                } else if (hDiff > 180) {
+                    dhp = hDiff - 360;
+                } else {
+                    dhp = hDiff + 360;
+                }
+            }
+
+            // 平均色相の計算を簡略化
+            let Hbarp;
+            if (C1p * C2p === 0) {
+                Hbarp = h1p + h2p;
+            } else {
+                const hSum = h1p + h2p;
+                if (Math.abs(h1p - h2p) <= 180) {
+                    Hbarp = hSum / 2;
+                } else if (hSum < 360) {
+                    Hbarp = (hSum + 360) / 2;
+                } else {
+                    Hbarp = (hSum - 360) / 2;
+                }
+            }
+
+            // 重み係数の計算
+            // 三角関数計算をキャッシュから取得
+            const T = 1 - 0.17 * cachedCos(Hbarp - 30)
+                      + 0.24 * cachedCos(2 * Hbarp)
+                      + 0.32 * cachedCos(3 * Hbarp + 6)
+                      - 0.20 * cachedCos(4 * Hbarp - 63);
+
+            const dTheta = 30 * Math.exp(-Math.pow((Hbarp - 275) / 25, 2));
+
+            const RC = 2 * Math.sqrt(C7 / (C7 + 6103515625)); // 25^7
+
+            const Lmean = (L1 + L2) / 2;
+            const LmeanMinus50Squared = Math.pow(Lmean - 50, 2);
+            const SL = 1 + (0.015 * LmeanMinus50Squared) / Math.sqrt(20 + LmeanMinus50Squared);
+
+            const SC = 1 + 0.045 * Cbarp;
+            const SH = 1 + 0.015 * Cbarp * T;
+
+            const RT = -cachedSin(2 * dTheta) * RC;
+
+            // 色差成分の計算
+            const dL = L2 - L1;
+            const dCp = C2p - C1p;
+            const dHp = 2 * Math.sqrt(C1p * C2p) * cachedSin(dhp / 2);
+
+            // 最終的な色差の計算
+            const dLSL = dL / SL;
+            const dCpSC = dCp / SC;
+            const dHpSH = dHp / SH;
+
+            const dE00 = Math.sqrt(
+                dLSL * dLSL +
+                dCpSC * dCpSC +
+                dHpSH * dHpSH +
+                RT * dCpSC * dHpSH
+            );
+
+            // 結果をキャッシュに保存
+            differenceCache.set(cacheKey, dE00);
+
+            return dE00;
+        }
+
+        // 簡略版の色差計算（非常に高速だが精度は若干低い）- 選択的に使用可能
+        function fastColorDifference(color1, color2) {
+            // RGB値の単純な差
+            const rDiff = Math.abs(color1[0] - color2[0]);
+            const gDiff = Math.abs(color1[1] - color2[1]);
+            const bDiff = Math.abs(color1[2] - color2[2]);
+
+            // 人間の視覚は緑に最も敏感で、青に最も鈍感
+            // 重み付けした色差（簡易的なアプローチ）
+            return Math.sqrt(rDiff * rDiff * 0.3 + gDiff * gDiff * 0.59 + bDiff * bDiff * 0.11);
+        }
+
+        // 色覚タイプに応じた色差計算を行う関数
+        function colorDifferenceForColorVision(color1, color2, colorVisionMode) {
+            // 通常の色覚モードでは調整なし
+            if (colorVisionMode === 'normal') {
+                return colorDifferenceOptimized(color1, color2);
+            }
+
+            // 色覚異常タイプに応じた重みづけ
+            let rWeight = 0.3;
+            let gWeight = 0.59;
+            let bWeight = 0.11;
+
+            switch(colorVisionMode) {
+                case 'protanopia': // 1型色覚（P型）- 赤が見えにくい
+                    rWeight = 0.1;   // 赤の重みを下げる
+                    gWeight = 0.7;   // 緑の重みを上げる
+                    bWeight = 0.2;   // 青の重みを少し上げる
+                    break;
+                case 'deuteranopia': // 2型色覚（D型）- 緑が見えにくい
+                    rWeight = 0.4;   // 赤の重みを上げる
+                    gWeight = 0.4;   // 緑の重みを下げる
+                    bWeight = 0.2;   // 青の重みを少し上げる
+                    break;
+                case 'tritanopia': // 3型色覚（T型）- 青が見えにくい
+                    rWeight = 0.3;   // 赤はそのまま
+                    gWeight = 0.6;   // 緑を少し上げる
+                    bWeight = 0.1;   // 青の重みを下げる
+                    break;
+                case 'simulate-protanopia': // 1型色覚シミュレーション
+                    rWeight = 0.2;   // 赤の重みを下げる
+                    gWeight = 0.7;   // 緑の重みを上げる
+                    bWeight = 0.1;   // 青の重みを下げる
+                    break;
+                case 'simulate-deuteranopia': // 2型色覚シミュレーション
+                    rWeight = 0.4;   // 赤の重みを上げる
+                    gWeight = 0.3;   // 緑の重みを下げる
+                    bWeight = 0.3;   // 青の重みを上げる
+                    break;
+            }
+
+            // RGB値の単純な差（各色覚タイプに応じた重み付け）
+            const rDiff = Math.abs(color1[0] - color2[0]);
+            const gDiff = Math.abs(color1[1] - color2[1]);
+            const bDiff = Math.abs(color1[2] - color2[2]);
+
+            // 色覚タイプに基づいて重み付けした色差
+            return Math.sqrt(rDiff * rDiff * rWeight + gDiff * gDiff * gWeight + bDiff * bDiff * bWeight);
+        }
+
+        // 最適化されたメインの色差計算関数
+        function colorDifferenceOptimized(color1, color2) {
+            // 色のRGB値からキャッシュキーを生成（順不同で同じキーになるように）
+            const cacheKey =
+                color1[0] <= color2[0] || (color1[0] === color2[0] && color1[1] <= color2[1]) ||
+                (color1[0] === color2[0] && color1[1] === color2[1] && color1[2] <= color2[2])
+                    ? `${color1[0]},${color1[1]},${color1[2]}_${color2[0]},${color2[1]},${color2[2]}`
+                    : `${color2[0]},${color2[1]},${color2[2]}_${color1[0]},${color1[1]},${color1[2]}`;
+
+            // キャッシュをチェック
+            if (colorCache.has(cacheKey)) {
+                return colorCache.get(cacheKey);
+            }
+
+            // LAB色空間に変換
+            const lab1 = rgbToLabCached(color1);
+            const lab2 = rgbToLabCached(color2);
+
+            // 色差を計算
+            const diff = deltaE2000Optimized(lab1, lab2);
+
+            // 結果をキャッシュに保存
+            colorCache.set(cacheKey, diff);
+
+            return diff;
+        }
+
+        // 難易度に基づいてどの色差関数を使うか決定する関数
+        function chooseDifferenceFunction(difficultyLevel, colorVisionMode) {
+            // 色覚異常モードが選択されている場合は専用の関数を使用
+            if (colorVisionMode !== 'normal') {
+                return (color1, color2) => colorDifferenceForColorVision(color1, color2, colorVisionMode);
+            }
+
+            // 難しいモードでは高精度が必要
+            if (difficultyLevel === 'hard') {
+                return colorDifferenceOptimized;
+            }
+            // それ以外の場合は高速版を使用可能
+            return fastColorDifference;
+        }
+
+        // キャッシュサイズを制限するためのヘルパー関数
+        function limitCacheSize(cache, maxSize = 1000) {
+            if (cache.size > maxSize) {
+                // LRU的なアプローチ：古いエントリから削除
+                const keysToDelete = Array.from(cache.keys()).slice(0, Math.floor(cache.size / 2));
+                keysToDelete.forEach(key => cache.delete(key));
+            }
+        }
+
+        // 定期的にキャッシュサイズをチェックし制限する
+        function setupCacheManagement() {
+            const checkCaches = () => {
+                limitCacheSize(colorCache);
+                limitCacheSize(labCache);
+                limitCacheSize(differenceCache);
+                limitCacheSize(cosCache);
+                limitCacheSize(sinCache);
+            };
+
+            // 5秒ごとにキャッシュをチェック
+            setInterval(checkCaches, 5000);
+        }
+
+        // 元のランダムな色を生成する関数（ランダムモード用）
+        function generateRandomColor() {
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // 色覚タイプに基づいて色を調整する関数
+        function adjustColorForColorVision(rgbColor, colorVisionMode) {
+            // 通常の色覚モードでは調整なし
+            if (colorVisionMode === 'normal') {
+                return rgbColor;
+            }
+
+            // 文字列からRGB値を取得
+            const colorRegex = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/;
+            const match = rgbColor.match(colorRegex);
+            if (!match) return rgbColor;
+
+            const r = parseInt(match[1]);
+            const g = parseInt(match[2]);
+            const b = parseInt(match[3]);
+
+            // 色覚タイプに応じた調整
+            let adjustedR = r;
+            let adjustedG = g;
+            let adjustedB = b;
+
+            switch(colorVisionMode) {
+                case 'protanopia': // 1型色覚（P型）向け - 赤が見えにくい人向けに調整
+                    // 赤と緑の差を強調
+                    if (r > g) {
+                        adjustedR = Math.min(255, r + 30);
+                        adjustedG = Math.max(0, g - 20);
+                    } else if (g > r) {
+                        adjustedR = Math.max(0, r - 20);
+                        adjustedG = Math.min(255, g + 30);
+                    }
+                    // 明暗の差を強調
+                    adjustedB = Math.min(255, Math.max(0, b + Math.floor((r - g) / 2)));
+                    break;
+
+                case 'deuteranopia': // 2型色覚（D型）向け - 緑が見えにくい人向けに調整
+                    // 赤と緑の差を強調
+                    if (r > g) {
+                        adjustedR = Math.min(255, r + 40);
+                        adjustedG = Math.max(0, g - 30);
+                    } else if (g > r) {
+                        adjustedR = Math.max(0, r - 30);
+                        adjustedG = Math.min(255, g + 40);
+                    }
+                    // 青を少し強調
+                    adjustedB = Math.min(255, Math.max(0, b + 20));
+                    break;
+
+                case 'tritanopia': // 3型色覚（T型）向け - 青が見えにくい人向けに調整
+                    // 青と緑の差を強調
+                    if (b > g) {
+                        adjustedB = Math.min(255, b + 40);
+                        adjustedG = Math.max(0, g - 20);
+                    } else if (g > b) {
+                        adjustedB = Math.max(0, b - 20);
+                        adjustedG = Math.min(255, g + 30);
+                    }
+                    // 赤をやや強調
+                    adjustedR = Math.min(255, Math.max(0, r + 20));
+                    break;
+
+                case 'simulate-protanopia': // 1型色覚（P型）の見え方をシミュレート
+                    // 赤色の成分を弱める（赤が見えにくいシミュレーション）
+                    // P型の数学的なシミュレーション（簡易版）
+                    adjustedR = Math.round(0.1 * r + 0.9 * g);
+                    adjustedG = Math.round(0.1 * r + 0.9 * g);
+                    adjustedB = b;
+                    break;
+
+                case 'simulate-deuteranopia': // 2型色覚（D型）の見え方をシミュレート
+                    // 緑色の成分を弱める（緑が見えにくいシミュレーション）
+                    // D型の数学的なシミュレーション（簡易版）
+                    adjustedR = Math.round(0.8 * r + 0.2 * g);
+                    adjustedG = Math.round(0.2 * r + 0.8 * g);
+                    adjustedB = b;
+                    break;
+            }
+
+            return `rgb(${adjustedR}, ${adjustedG}, ${adjustedB})`;
+        }
+
+        // 難易度に基づいて色をランダムに生成する関数
+        function generateColorByDifficulty(difficultyLevel, previousColors = []) {
+            // ランダムモードは元の関数を使用
+            if (difficultyLevel === 'random3' || difficultyLevel === 'random6' || difficultyLevel === 'random9') {
+                return generateRandomColor();
+            }
+
+            // 基本のランダム色生成
+            function getRandomRGB() {
+                const r = Math.floor(Math.random() * 256);
+                const g = Math.floor(Math.random() * 256);
+                const b = Math.floor(Math.random() * 256);
+                return [r, g, b];
+            }
+
+            // 難易度に基づいた色の差の閾値（CIEDE2000用に調整）
+            // CIEDE2000値の参考:
+            // 0-1: 知覚できない差（同一色と見なせる）
+            // 1-2: わずかな差（熟練者のみ区別可能）
+            // 2-5: 微妙な差（注意すれば区別可能）
+            // 5-10: 明確な差（容易に区別可能）
+            // 10+: 非常に明確な差（誰でも区別可能）
+            let threshold;
+            if (difficultyLevel === 'easy') {
+                threshold = 10; // 簡単：非常に明確な差
+            } else if (difficultyLevel === 'hard') {
+                threshold = 5;  // 難しい：微妙な差
+            } else {
+                threshold = 7;  // 普通：適度な差
+            }
+
+            // 色覚モードに応じて閾値を調整
+            if (colorVisionMode !== 'normal') {
+                // 色覚異常モードでは差をより明確にする
+                threshold = threshold * 1.5;
+            }
+
+            let newColor, isValid, attempts = 0;
+            const maxAttempts = 25; // 最大試行回数
+
+            do {
+                newColor = getRandomRGB();
+                isValid = true;
+
+                // 既存の色との差を確認（1色以上ある場合のみ）
+                if (previousColors.length > 0) {
+                    for (let i = 0; i < previousColors.length; i++) {
+                        const prev = previousColors[i];
+                        // 文字列からRGB値を取得
+                        const prevR = parseInt(prev.substring(4, prev.indexOf(',')));
+                        const prevG = parseInt(prev.substring(prev.indexOf(',') + 1, prev.lastIndexOf(',')));
+                        const prevB = parseInt(prev.substring(prev.lastIndexOf(',') + 1, prev.indexOf(')')));
+
+                        // 最適化した色差計算関数を使用
+                        const diffFunc = chooseDifferenceFunction(difficultyLevel, colorVisionMode);
+                        const diff = diffFunc(newColor, [prevR, prevG, prevB]);
+
+                        // 難易度に基づいて色の差を確認
+                        if (difficultyLevel === 'easy' && diff < threshold) {
+                            // 簡単モード：色が似すぎている場合は不適
+                            isValid = false;
+                            break;
+                        } else if (difficultyLevel === 'hard' && diff > threshold) {
+                            // 難しいモード：色の差が大きすぎる場合は不適
+                            isValid = false;
+                            break;
+                        }
+                    }
+                }
+
+                attempts++;
+                // 最大試行回数に達した場合は、現在の色を使用
+                if (attempts >= maxAttempts) {
+                    console.log("注: 試行回数 " + attempts + "回で最適な色が見つからず、現在の色を使用します");
+                    break;
+                }
+            } while (!isValid && previousColors.length > 0);
+
+            return `rgb(${newColor[0]}, ${newColor[1]}, ${newColor[2]})`;
+        }
+
+        // 色の配列を生成
+        function generateColors(num) {
+            const arr = [];
+            for (let i = 0; i < num; i++) {
+                // 現在の難易度に基づいて色を生成
+                arr.push(generateColorByDifficulty(difficultyLevel, arr));
+            }
+            return arr;
+        }
+
+        // 配列からランダムに1つ選ぶ
+        function pickColor() {
+            const random = Math.floor(Math.random() * colors.length);
+            return colors[random];
+        }
+
+        // 色のパターンをランダムに選択する関数
+        function getRandomPattern() {
+            const patterns = ['pattern-lines', 'pattern-dots', 'pattern-grid'];
+            const randomIndex = Math.floor(Math.random() * patterns.length);
+            return patterns[randomIndex];
+        }
+
+        // 正解の色を表示する
+        function showCorrectAnswer() {
+            const squares = document.querySelectorAll('.color-square');
+            let position = "";
+            let correctIndex = -1;
+
+            // 正解の色のインデックスを見つける
+            for (let i = 0; i < colors.length; i++) {
+                if (colors[i] === correctColor) {
+                    // インデックスを保存
+                    correctIndex = i;
+                    // そのインデックスの色スクエアを強調表示
+                    squares[i].classList.add('correct-color');
+                    squares[i].style.opacity = '1'; // 正解の色は完全に表示
+                    break;
+                }
+            }
+
+            // 難易度に応じた位置表現を設定
+            if (numColors === 3) { // 3色の場合
+                if (correctIndex === 0) position = "左";
+                else if (correctIndex === 1) position = "中央";
+                else position = "右";
+            } else { // 6色または9色の場合
+                const row = Math.floor(correctIndex / 3) + 1;
+                const col = (correctIndex % 3) + 1;
+                position = `${row}行目の${col}番目`;
+            }
+
+            document.getElementById('message').textContent = `正解は${position}の色です！`;
+            document.getElementById('message').style.color = '#ff9800';
+        }
+
+        // 無限モード用の正解表示関数
+        function showCorrectAnswerInfiniteMode() {
+            showCorrectAnswer(); // 正解の色を表示
+
+            // 1秒後に次の問題へ
+            setTimeout(() => {
+                resetGame();
+            }, 1000);
+        }
+
+        // 同じ問題を再表示する関数（確認用）
+        function retryProblem() {
+            document.getElementById('message').textContent = '確認モード: 回答はできません';
+            document.getElementById('message').className = '';
+            document.getElementById('message').style.color = 'blue';
+
+            // すべての色スクエアを再表示するが、クリックは無効のまま
+            const squares = document.querySelectorAll('.color-square');
+            squares.forEach(square => {
+                square.style.opacity = '1';
+                square.classList.remove('correct-color');
+                // 元の色に戻す（不正解で色が変わっている場合）
+                const index = Array.from(squares).indexOf(square);
+                if (index < colors.length) {
+                    square.style.backgroundColor = colors[index];
+                }
+                // クリックは無効のまま
+                square.style.pointerEvents = 'none';
+            });
+
+            // ボタンの表示状態を管理
+            document.getElementById('retry-problem').style.display = 'none';
+            // 正解確認ボタンは表示したまま
+        }
+
+        // ゲームオーバー処理
+        function gameOver() {
+            isGameOver = true;
+            document.getElementById('message').textContent = `ゲームオーバー！${maxWrongAttempts}回連続で間違えました`;
+            document.getElementById('message').className = 'game-over';
+
+            // タイム情報をクリア
+            if (useTimeBonus) {
+                document.getElementById('time-info').textContent = '';
+            }
+
+            // すべての色スクエアを無効化
+            const squares = document.querySelectorAll('.color-square');
+            squares.forEach(square => {
+                square.style.pointerEvents = 'none';
+                square.style.opacity = '0.5';
+            });
+
+            // 正解確認ボタンと再挑戦ボタンを表示
+            document.getElementById('show-correct').style.display = 'inline-block';
+            document.getElementById('retry-problem').style.display = 'inline-block';
+            document.getElementById('share-score').style.display = 'inline-block';
+        }
+
+        // 色のスクエアを作成
+        function setupSquares() {
+            const container = document.getElementById('color-container');
+            container.innerHTML = '';
+
+            colors = generateColors(numColors);
+            correctColor = pickColor();
+
+            document.getElementById('rgb-display').textContent = correctColor.toUpperCase();
+
+            // タイマーのリセットと開始
+            if (useTimeBonus) {
+                startTime = Date.now();
+                document.getElementById('time-info').textContent = 'タイム計測中...';
+            } else {
+                document.getElementById('time-info').textContent = '';
+            }
+
+            for (let i = 0; i < numColors; i++) {
+                const square = document.createElement('div');
+                square.className = 'color-square';
+
+                // 色覚モードに基づいて色を調整
+                const adjustedColor = adjustColorForColorVision(colors[i], colorVisionMode);
+                square.style.backgroundColor = adjustedColor;
+
+                // 色覚異常モード用のパターンを追加
+                if (useColorPatterns) {
+                    const pattern = document.createElement('div');
+                    pattern.className = `color-pattern ${getRandomPattern()}`;
+                    square.appendChild(pattern);
+                }
+
+                // 数字ラベルを追加（色覚異常モード）
+                if (showColorNumbers) {
+                    const numberLabel = document.createElement('div');
+                    numberLabel.className = 'color-number';
+                    numberLabel.textContent = (i + 1).toString();
+                    square.appendChild(numberLabel);
+                }
+
+                square.addEventListener('click', function() {
+                    // ゲームオーバー時はクリックを無視
+                    if (isGameOver) return;
+
+                    // 既にクリック済みのスクエアは無視
+                    if (this.classList.contains('clicked')) return;
+
+                    // このスクエアをクリック済みとしてマーク
+                    this.classList.add('clicked');
+
+                    const clickedColor = this.style.backgroundColor;
+
+                    if (clickedColor === adjustColorForColorVision(correctColor, colorVisionMode)) {
+                        // 正解の場合
+                        // モードによって処理を分ける
+                        if (gameMode === 'normal') {
+                            // 通常モードの処理
+                            document.getElementById('message').textContent = '正解！';
+                            document.getElementById('message').style.color = 'green';
+                            document.getElementById('message').className = '';
+
+                            // 難易度ごとの基本スコア
+                            let basePoints;
+                            switch(difficultyLevel) {
+                                case 'easy':
+                                case 'random3':
+                                    basePoints = 5;
+                                    break;
+                                case 'hard':
+                                case 'random9':
+                                    basePoints = 15;
+                                    break;
+                                default: // medium, random6
+                                    basePoints = 10;
+                                    break;
+                            }
+
+                            // 色覚異常モードの場合、ボーナスポイントを追加
+                            if (colorVisionMode !== 'normal') {
+                                basePoints = Math.round(basePoints * 1.2); // 20%ボーナス
+                            }
+
+                            // 連続正解回数を更新
+                            consecutiveCorrect++;
+
+                            // スコア計算と表示更新
+                            let earnedPoints;
+
+                            if (consecutiveCorrect === 1) {
+                                // 1回目は基本点数のみ
+                                earnedPoints = basePoints;
+                            } else {
+                                // 2回目以降はボーナス適用
+                                scoreMultiplier = 1 + ((consecutiveCorrect - 1) / 10);
+                                earnedPoints = Math.round(basePoints * scoreMultiplier);
+                            }
+
+                            // タイムボーナスの計算（有効時のみ）
+                            timeBonus = 0;
+                            let responseTime = '';
+
+                            if (useTimeBonus && startTime) {
+                                const endTime = Date.now();
+                                const timeElapsed = (endTime - startTime) / 1000; // 秒単位
+                                responseTime = timeElapsed.toFixed(2) + '秒';
+
+                                // 時間に応じたボーナス計算
+                                if (timeElapsed <= 1.5) {
+                                    timeBonus = Math.round(basePoints * 1.0); // 超速：100%ボーナス
+                                    document.getElementById('time-info').textContent =
+                                        `応答時間: ${responseTime} - 超速ボーナス: +${timeBonus}点!`;
+                                } else if (timeElapsed <= 3) {
+                                    timeBonus = Math.round(basePoints * 0.5); // 速い：50%ボーナス
+                                    document.getElementById('time-info').textContent =
+                                        `応答時間: ${responseTime} - 速さボーナス: +${timeBonus}点!`;
+                                } else if (timeElapsed <= 5) {
+                                    timeBonus = Math.round(basePoints * 0.2); // 標準：20%ボーナス
+                                    document.getElementById('time-info').textContent =
+                                        `応答時間: ${responseTime} - タイムボーナス: +${timeBonus}点`;
+                                } else {
+                                    document.getElementById('time-info').textContent =
+                                        `応答時間: ${responseTime} - ボーナスなし`;
+                                }
+
+                                // 総獲得ポイントにタイムボーナスを追加
+                                earnedPoints += timeBonus;
+                            }
+
+                            score += earnedPoints;
+                            document.getElementById('score').textContent = `スコア: ${score}`;
+
+                            // コンボ表示の更新
+                            if (consecutiveCorrect > 1) {
+                                const comboText = `${consecutiveCorrect} コンボ! (${scoreMultiplier.toFixed(1)}倍ボーナス)`;
+                                document.getElementById('combo').textContent = `${comboText} +${earnedPoints}点`;
+                            } else {
+                                document.getElementById('combo').textContent = `+${earnedPoints}点`;
+                            }
+
+                            consecutiveWrong = 0; // 連続不正解回数をリセット
+
+                            // 正解後に全ての色スクエアをクリック無効にする
+                            const allSquares = document.querySelectorAll('.color-square');
+                            allSquares.forEach(square => {
+                                square.style.pointerEvents = 'none';
+                            });
+
+                            // 正解のスクエアの枠線を追加しない
+                            this.classList.remove('clicked'); // 正解のマスは暗くしない
+                            this.style.opacity = '1'; // 正解のマスは完全に表示
+
+                            setTimeout(resetGame, 1500);
+                        } else if (gameMode === 'infinite') {
+                            // 無限モードの処理
+                            // メッセージ表示なし
+
+                            // 連続正解数を更新
+                            infiniteStreak++;
+                            document.getElementById('infinite-streak').textContent = `連続正解数: ${infiniteStreak}`;
+
+                            // スコア更新（シンプルな加算）
+                            let basePoints;
+                            switch(difficultyLevel) {
+                                case 'easy':
+                                case 'random3':
+                                    basePoints = 5;
+                                    break;
+                                case 'hard':
+                                case 'random9':
+                                    basePoints = 15;
+                                    break;
+                                default: // medium, random6
+                                    basePoints = 10;
+                                    break;
+                            }
+
+                            // ストリークボーナス
+                            const streakMultiplier = 1 + (infiniteStreak / 20); // 20問ごとに1.0倍ずつ上昇
+                            const earnedPoints = Math.round(basePoints * streakMultiplier);
+                            score += earnedPoints;
+                            document.getElementById('score').textContent = `スコア: ${score}`;
+
+                            // すぐに次の問題へ
+                            resetGame();
+                        }
+                    } else {
+                        // 不正解の場合
+                        this.style.backgroundColor = '#f0f0f0'; // グレーに変更
+                        this.style.opacity = '0.5'; // 半透明に
+
+                        if (gameMode === 'normal') {
+                            // 通常モードの処理
+                            consecutiveWrong++; // 連続不正解回数を増やす
+                            consecutiveCorrect = 0; // 連続正解回数をリセット
+                            document.getElementById('combo').textContent = ''; // コンボ表示をクリア
+
+                            // タイム情報をリセット（タイムボーナス有効時）
+                            if (useTimeBonus) {
+                                document.getElementById('time-info').textContent = '';
+                            }
+
+                            if (consecutiveWrong >= maxWrongAttempts) {
+                                gameOver();
+                            } else {
+                                document.getElementById('message').textContent = `不正解...もう一度！(${consecutiveWrong}/${maxWrongAttempts})`;
+                                document.getElementById('message').style.color = 'red';
+                                document.getElementById('message').className = '';
+                                if (score > 0) score -= 2;
+                                document.getElementById('score').textContent = `スコア: ${score}`;
+                            }
+                        } else if (gameMode === 'infinite') {
+                            // 無限モードの処理
+                            document.getElementById('message').textContent = '不正解！';
+                            document.getElementById('message').style.color = 'red';
+
+                            // 連続正解数をリセット
+                            infiniteStreak = 0;
+                            document.getElementById('infinite-streak').textContent = `連続正解数: ${infiniteStreak}`;
+
+                            // すべてのスクエアをクリック無効に
+                            const allSquares = document.querySelectorAll('.color-square');
+                            allSquares.forEach(square => {
+                                square.style.pointerEvents = 'none';
+                            });
+
+                            // 正解を表示して3秒後に次の問題へ
+                            showCorrectAnswerInfiniteMode();
+                        }
+                    }
+                });
+
+                container.appendChild(square);
+            }
+        }
+
+        // ゲームをリセット
+        function resetGame() {
+            document.getElementById('message').textContent = '';
+            document.getElementById('message').className = '';
+            document.getElementById('message').style.color = ''; // 色をリセット
+
+            // 通常モードの場合のみコンボ表示をクリア
+            if (gameMode === 'normal') {
+                document.getElementById('combo').textContent = ''; // コンボ表示をクリア
+            }
+
+            // タイム情報のリセット
+            if (useTimeBonus) {
+                document.getElementById('time-info').textContent = 'タイム計測中...';
+                startTime = Date.now();
+            } else {
+                document.getElementById('time-info').textContent = '';
+            }
+
+            consecutiveWrong = 0; // 連続不正解回数をリセット
+            isGameOver = false; // ゲームオーバーフラグをリセット
+
+            // 正解確認ボタンと再挑戦ボタンを非表示
+            document.getElementById('show-correct').style.display = 'none';
+            document.getElementById('retry-problem').style.display = 'none';
+            document.getElementById('share-score').style.display = 'none';
+
+            setupSquares();
+        }
+
+        // Blueskyに共有する機能
+        function shareToBluesky() {
+            // 現在のスコアを取得
+            const currentScore = score;
+
+            // 難易度を日本語で取得
+            let difficultyText;
+            switch (difficultyLevel) {
+                case 'easy':
+                    difficultyText = '簡単';
+                    break;
+                case 'hard':
+                    difficultyText = '難しい';
+                    break;
+                case 'random3':
+                    difficultyText = 'ランダム3色';
+                    break;
+                case 'random6':
+                    difficultyText = 'ランダム6色';
+                    break;
+                case 'random9':
+                    difficultyText = 'ランダム9色';
+                    break;
+                default:
+                    difficultyText = '普通';
+            }
+
+            // 色覚モードを日本語で取得
+            let colorVisionText;
+            switch (colorVisionMode) {
+                case 'protanopia':
+                    colorVisionText = '1型色覚(P型)向け';
+                    break;
+                case 'deuteranopia':
+                    colorVisionText = '2型色覚(D型)向け';
+                    break;
+                case 'tritanopia':
+                    colorVisionText = '3型色覚(T型)向け';
+                    break;
+                case 'simulate-protanopia':
+                    colorVisionText = '1型色覚シミュレーション';
+                    break;
+                case 'simulate-deuteranopia':
+                    colorVisionText = '2型色覚シミュレーション';
+                    break;
+                default:
+                    colorVisionText = '通常';
+            }
+
+            // ゲームモードを取得
+            const gameModeText = gameMode === 'normal' ? '通常モード' : '無限モード';
+
+            // 無限モードの場合は連続正解数も表示
+            const streakText = gameMode === 'infinite' ? `連続正解数: ${infiniteStreak} ` : '';
+
+            // 現在のページのURLを取得
+            const pageUrl = window.location.href;
+
+            // 共有するメッセージを作成
+            const message = `RGB色当てゲームで${currentScore}点を獲得しました！${streakText}(${gameModeText}, 難易度: ${difficultyText}, 色覚モード: ${colorVisionText}) #RGBゲーム #色当て ${pageUrl}`;
+
+            // Blueskyの投稿画面を開く（AT Protocolを使用）
+            // 注意：Blueskyは正式なシェア用URLがないため、代替手段としてテキストをコピー
+            navigator.clipboard.writeText(message)
+                .then(() => {
+                    // メッセージをコピーした後、Blueskyを開く
+                    window.open('https://bsky.app', '_blank');
+
+                    // 確認メッセージを表示
+                    document.getElementById('message').textContent = 'メッセージをコピーしました！Blueskyに貼り付けてください';
+                    document.getElementById('message').style.color = 'blue';
+                    document.getElementById('message').className = '';
+                })
+                .catch(err => {
+                    // エラー処理
+                    document.getElementById('message').textContent = 'メッセージのコピーに失敗しました';
+                    document.getElementById('message').style.color = 'red';
+                    document.getElementById('message').className = '';
+                    console.error('コピーに失敗:', err);
+                });
+        }
+
+        // 新しいゲームボタン
+        document.getElementById('new-game').addEventListener('click', function() {
+            // スコアをリセット
+            score = 0;
+            document.getElementById('score').textContent = `スコア: 0`;
+            consecutiveCorrect = 0; // 連続正解回数をリセット
+            document.getElementById('combo').textContent = ''; // コンボ表示をクリア
+
+            // 無限モードの連続正解数もリセット
+            infiniteStreak = 0;
+            if (gameMode === 'infinite') {
+                document.getElementById('infinite-streak').textContent = `連続正解数: ${infiniteStreak}`;
+            }
+
+            // タイム情報をリセット
+            if (useTimeBonus) {
+                document.getElementById('time-info').textContent = 'タイム計測中...';
+                startTime = Date.now();
+            } else {
+                document.getElementById('time-info').textContent = '';
+            }
+
+            resetGame();
+        });
+
+        // Blueskyに共有ボタン
+        document.getElementById('share-score').addEventListener('click', shareToBluesky);
+
+        // 正解確認ボタン
+        document.getElementById('show-correct').addEventListener('click', showCorrectAnswer);
+
+        // 問題をもう一度試すボタン
+        document.getElementById('retry-problem').addEventListener('click', retryProblem);
+
+        // 初期難易度に応じて最大不正解回数を設定
+        if (difficultyLevel === 'easy' || difficultyLevel === 'random3') {
+            maxWrongAttempts = 2; // 簡単モードとランダム3色は2回まで
+        } else {
+            maxWrongAttempts = 3; // 他のモードは3回まで
+        }
+
+        // 初期化
+        setupSquares();
+    </script>
+
+    <!-- Service Worker登録スクリプト -->
+    <script>
+        // Service Workerの登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('Service Workerの登録に成功しました。スコープ: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Workerの登録に失敗しました: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
